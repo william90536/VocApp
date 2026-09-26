@@ -1,98 +1,47 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, FlatList, Modal, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StudySession } from '@/components/StudySession';
+import { QuizMode, QuizSession } from '@/components/QuizSession';
+import { addCard, addDeck, Card, Deck, getCardsByDeckId, getDecks } from '@/db/queries';
+import { initDatabase } from '@/db/schema';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+const c = { blue: '#4255ff', blueDark: '#2f3fca', ink: '#1f2943', muted: '#66728f', canvas: '#f6f7fb', border: '#dfe3ee', white: '#fff', pale: '#e9ebff' };
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+export default function Index() {
+  const [decks, setDecks] = useState<Deck[]>([]); const [deck, setDeck] = useState<Deck | null>(null); const [cards, setCards] = useState<Card[]>([]);
+  const [session, setSession] = useState<'flashcards' | QuizMode | null>(null); const [deckSheet, setDeckSheet] = useState(false); const [cardSheet, setCardSheet] = useState(false);
+  const [deckTitle, setDeckTitle] = useState(''); const [deckDescription, setDeckDescription] = useState('');
+  const [word, setWord] = useState(''); const [phonetic, setPhonetic] = useState(''); const [definition, setDefinition] = useState(''); const [example, setExample] = useState('');
+  const refresh = () => setDecks(getDecks());
+  useEffect(() => { initDatabase(); refresh(); }, []);
+  const openDeck = (item: Deck) => { setDeck(item); setCards(getCardsByDeckId(item.id)); setSession(null); };
+  const closeDeck = () => { setDeck(null); setCards([]); setSession(null); };
+  const createDeck = () => { if (!deckTitle.trim()) return Alert.alert('需要名稱', '請替這份單字本取個名稱。'); addDeck(deckTitle.trim(), deckDescription.trim()); setDeckTitle(''); setDeckDescription(''); setDeckSheet(false); refresh(); };
+  const createCard = () => { if (!deck) return; if (!word.trim() || !definition.trim()) return Alert.alert('資料不完整', '請填入英文單字與中文釋義。'); addCard(deck.id, word.trim(), definition.trim(), phonetic.trim(), example.trim()); setWord(''); setPhonetic(''); setDefinition(''); setExample(''); setCardSheet(false); openDeck(deck); refresh(); };
+  const totalCards = decks.reduce((sum, item) => sum + (item.card_count ?? 0), 0);
+
+  return <SafeAreaView style={s.screen} edges={['top']}>
+    <StatusBar barStyle="dark-content" />
+    {!deck ? <FlatList data={decks} keyExtractor={item => item.id} contentContainerStyle={s.list} ListHeaderComponent={<>
+      <View style={s.header}><View><Text style={s.eyebrow}>我的學習</Text><Text style={s.title}>單字本</Text></View><TouchableOpacity onPress={() => setDeckSheet(true)} style={s.add}><Text style={s.addText}>+</Text></TouchableOpacity></View>
+      <View style={s.summary}><View><Text style={s.summaryValue}>{totalCards}</Text><Text style={s.summaryLabel}>張詞卡</Text></View><View style={s.divider}/><View><Text style={s.summaryValue}>{decks.length}</Text><Text style={s.summaryLabel}>份單字本</Text></View><TouchableOpacity onPress={() => setDeckSheet(true)}><Text style={s.link}>建立單字本</Text></TouchableOpacity></View><Text style={s.section}>你的單字本</Text>
+    </>} ListEmptyComponent={<Empty title="從第一份單字本開始" body="建立自己的詞卡，隨時拿出來複習。" action={() => setDeckSheet(true)} />} renderItem={({ item }) => <TouchableOpacity style={s.deckCard} onPress={() => openDeck(item)}><View style={s.accent}/><View style={s.deckCopy}><Text style={s.deckTitle}>{item.title}</Text><Text numberOfLines={1} style={s.deckDesc}>{item.description || '尚未加入說明'}</Text><Text style={s.cardCount}>{item.card_count ?? 0} 張詞卡</Text></View><Text style={s.chevron}>›</Text></TouchableOpacity>} /> : session ? <View style={s.studyScreen}><View style={s.studyHeader}><TouchableOpacity onPress={() => setSession(null)}><Text style={s.link}>‹ 退出複習</Text></TouchableOpacity><Text numberOfLines={1} style={s.studyDeck}>{deck.title}</Text></View>{session === 'flashcards' ? <StudySession cards={cards} onFinish={() => setSession(null)} /> : <QuizSession cards={cards} mode={session} onFinish={() => setSession(null)} />}</View> : <View style={s.detail}>
+      <View style={s.detailHeader}><TouchableOpacity onPress={closeDeck}><Text style={s.link}>‹ 單字本</Text></TouchableOpacity><TouchableOpacity onPress={() => setCardSheet(true)}><Text style={s.link}>新增詞卡</Text></TouchableOpacity></View>
+      <View style={s.intro}><Text style={s.eyebrow}>單字本</Text><Text style={s.title}>{deck.title}</Text>{!!deck.description && <Text style={s.detailDesc}>{deck.description}</Text>}<Text style={s.cardTotal}>{cards.length} 張詞卡</Text></View>
+      <TouchableOpacity onPress={() => setSession('flashcards')} style={s.studyButton}><Text style={s.studyButtonText}>開始複習</Text><Text style={s.studyArrow}>›</Text></TouchableOpacity><View style={s.modes}><Mode label="選擇題" onPress={() => setSession('choice')} /><Mode label="拼字練習" onPress={() => setSession('write')} /><Mode label="綜合測驗" onPress={() => setSession('test')} /></View><Text style={s.section}>詞卡</Text>
+      <FlatList data={cards} keyExtractor={item => item.id} contentContainerStyle={s.cards} ListEmptyComponent={<Empty title="還沒有詞卡" body="加入第一個單字，這份單字本就可以開始複習。" action={() => setCardSheet(true)} />} renderItem={({ item }) => <View style={s.wordCard}><View style={s.wordRow}><Text style={s.word}>{item.word}</Text>{!!item.phonetic && <Text style={s.phonetic}>{item.phonetic}</Text>}</View><Text style={s.definition}>{item.definition}</Text>{!!item.example && <Text style={s.example}>“{item.example}”</Text>}</View>} />
+    </View>}
+    <Sheet visible={deckSheet} title="建立單字本" button="建立" onClose={() => setDeckSheet(false)} onSubmit={createDeck}><Field label="名稱" value={deckTitle} onChangeText={setDeckTitle} placeholder="例如：TOEIC 750" autoFocus/><Field label="說明（選填）" value={deckDescription} onChangeText={setDeckDescription} placeholder="例如：第 1 到第 5 單元"/></Sheet>
+    <Sheet visible={cardSheet} title="新增詞卡" button="新增詞卡" onClose={() => setCardSheet(false)} onSubmit={createCard}><Field label="英文單字" value={word} onChangeText={setWord} placeholder="例如：resilient" autoFocus/><Field label="音標（選填）" value={phonetic} onChangeText={setPhonetic} placeholder="例如：/rɪˈzɪliənt/"/><Field label="中文釋義" value={definition} onChangeText={setDefinition} placeholder="例如：有韌性的"/><Field label="例句（選填）" value={example} onChangeText={setExample} placeholder="輸入例句"/></Sheet>
+  </SafeAreaView>;
 }
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to Expo
-          </ThemedText>
-        </ThemedView>
+function Empty({ title, body, action }: { title: string; body: string; action: () => void }) { return <View style={s.empty}><View style={s.mark}><Text style={s.markText}>Aa</Text></View><Text style={s.emptyTitle}>{title}</Text><Text style={s.emptyBody}>{body}</Text><TouchableOpacity onPress={action} style={s.primary}><Text style={s.primaryText}>開始建立</Text></TouchableOpacity></View>; }
+function Mode({ label, onPress }: { label: string; onPress: () => void }) { return <TouchableOpacity onPress={onPress} style={s.mode}><Text style={s.modeText}>{label}</Text></TouchableOpacity>; }
+function Field(props: { label: string } & React.ComponentProps<typeof TextInput>) { const { label, ...input } = props; return <View style={s.field}><Text style={s.fieldLabel}>{label}</Text><TextInput {...input} style={s.input} placeholderTextColor="#8a94ad"/></View>; }
+function Sheet({ visible, title, button, onClose, onSubmit, children }: { visible: boolean; title: string; button: string; onClose: () => void; onSubmit: () => void; children: React.ReactNode }) { return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={s.overlay}><View style={s.sheet}><View style={s.handle}/><View style={s.sheetHeader}><Text style={s.sheetTitle}>{title}</Text><TouchableOpacity onPress={onClose}><Text style={s.cancel}>取消</Text></TouchableOpacity></View>{children}<TouchableOpacity onPress={onSubmit} style={s.submit}><Text style={s.submitText}>{button}</Text></TouchableOpacity></View></View></Modal>; }
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+const s = StyleSheet.create({
+  screen:{flex:1,backgroundColor:c.canvas},list:{padding:20,paddingBottom:110},header:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:22},eyebrow:{color:c.muted,fontSize:13,fontWeight:'800'},title:{color:c.ink,fontSize:30,fontWeight:'800',marginTop:3},add:{width:44,height:44,borderRadius:8,backgroundColor:c.blue,alignItems:'center',justifyContent:'center',borderBottomWidth:3,borderBottomColor:c.blueDark},addText:{color:c.white,fontSize:28,lineHeight:30},summary:{minHeight:92,padding:18,flexDirection:'row',alignItems:'center',backgroundColor:c.white,borderWidth:1,borderColor:c.border,borderRadius:8,marginBottom:28},summaryValue:{color:c.ink,fontSize:21,fontWeight:'800'},summaryLabel:{color:c.muted,fontSize:13,marginTop:2},divider:{height:38,width:1,backgroundColor:c.border,marginHorizontal:18},link:{color:c.blue,fontSize:15,fontWeight:'800'},section:{color:c.ink,fontSize:18,fontWeight:'800',marginBottom:12},deckCard:{minHeight:116,flexDirection:'row',alignItems:'stretch',marginBottom:12,borderRadius:8,overflow:'hidden',backgroundColor:c.white,borderWidth:1,borderColor:c.border},accent:{width:6,backgroundColor:c.blue},deckCopy:{flex:1,padding:17},deckTitle:{color:c.ink,fontSize:18,fontWeight:'800'},deckDesc:{color:c.muted,fontSize:14,marginTop:5},cardCount:{color:c.blue,fontSize:13,fontWeight:'800',marginTop:12},chevron:{alignSelf:'center',color:'#98a1b7',fontSize:30,marginRight:16},empty:{paddingVertical:55,alignItems:'center'},mark:{width:66,height:66,backgroundColor:c.pale,borderRadius:8,alignItems:'center',justifyContent:'center',marginBottom:18},markText:{color:c.blue,fontSize:24,fontWeight:'800'},emptyTitle:{color:c.ink,fontSize:19,fontWeight:'800',textAlign:'center'},emptyBody:{color:c.muted,fontSize:14,lineHeight:21,textAlign:'center',marginTop:8,maxWidth:280},primary:{marginTop:22,minHeight:48,paddingHorizontal:20,backgroundColor:c.blue,borderRadius:8,justifyContent:'center',borderBottomWidth:3,borderBottomColor:c.blueDark},primaryText:{color:c.white,fontWeight:'800'},detail:{flex:1,paddingHorizontal:20},detailHeader:{paddingTop:14,flexDirection:'row',justifyContent:'space-between'},intro:{paddingTop:30,paddingBottom:20},detailDesc:{color:c.muted,fontSize:15,lineHeight:22,marginTop:8},cardTotal:{color:c.muted,fontSize:14,fontWeight:'700',marginTop:14},studyButton:{minHeight:56,paddingHorizontal:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:8,backgroundColor:c.blue,borderBottomWidth:4,borderBottomColor:c.blueDark,marginBottom:12},studyButtonText:{color:c.white,fontSize:17,fontWeight:'800'},studyArrow:{color:c.white,fontSize:28},modes:{flexDirection:'row',gap:8,marginBottom:28},mode:{flex:1,minHeight:42,alignItems:'center',justifyContent:'center',backgroundColor:c.white,borderRadius:8,borderWidth:1,borderColor:c.border},modeText:{color:c.blue,fontSize:13,fontWeight:'800'},cards:{paddingBottom:100},wordCard:{backgroundColor:c.white,padding:17,borderWidth:1,borderColor:c.border,borderRadius:8,marginBottom:10},wordRow:{flexDirection:'row',justifyContent:'space-between',gap:10},word:{flex:1,color:c.ink,fontSize:18,fontWeight:'800'},phonetic:{color:c.muted,fontSize:14},definition:{color:c.ink,fontSize:15,lineHeight:22,marginTop:10},example:{color:c.muted,fontSize:14,lineHeight:20,fontStyle:'italic',marginTop:8},studyScreen:{flex:1,paddingHorizontal:20},studyHeader:{minHeight:56,flexDirection:'row',alignItems:'center',justifyContent:'center'},studyDeck:{position:'absolute',left:85,right:85,color:c.muted,textAlign:'center',fontSize:14,fontWeight:'700'},overlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(24,33,57,.42)'},sheet:{backgroundColor:c.white,padding:20,paddingBottom:30,borderTopLeftRadius:16,borderTopRightRadius:16},handle:{width:38,height:4,borderRadius:2,backgroundColor:c.border,alignSelf:'center',marginBottom:18},sheetHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:22},sheetTitle:{color:c.ink,fontSize:21,fontWeight:'800'},cancel:{color:c.muted,fontSize:15,fontWeight:'700'},field:{marginBottom:16},fieldLabel:{color:c.ink,fontSize:14,fontWeight:'800',marginBottom:8},input:{height:50,paddingHorizontal:14,color:c.ink,backgroundColor:c.canvas,borderWidth:1,borderColor:c.border,borderRadius:8,fontSize:16},submit:{minHeight:52,alignItems:'center',justifyContent:'center',backgroundColor:c.blue,borderRadius:8,borderBottomWidth:4,borderBottomColor:c.blueDark,marginTop:8},submitText:{color:c.white,fontSize:16,fontWeight:'800'}
 });

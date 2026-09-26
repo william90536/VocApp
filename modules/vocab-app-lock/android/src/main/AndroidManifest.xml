@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <service
+      android:name=".VocabAppLockAccessibilityService"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+      android:exported="false"
+      android:label="VocabMaster App Lock">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data android:name="android.accessibilityservice" android:resource="@xml/vocab_app_lock_service" />
+    </service>
+    <activity
+      android:name=".VocabAppLockActivity"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:theme="@style/VocabAppLockTheme" />
+  </application>
+</manifest>

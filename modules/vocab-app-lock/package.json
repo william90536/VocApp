@@ -1,0 +1,9 @@
+{
+  "name": "vocab-app-lock",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*"
+  }
+}

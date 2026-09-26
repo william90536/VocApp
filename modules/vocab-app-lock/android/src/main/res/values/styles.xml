@@ -1,0 +1,8 @@
+<resources>
+  <style name="VocabAppLockTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+    <item name="android:colorAccent">#4255FF</item>
+    <item name="android:navigationBarColor">#F6F7FB</item>
+    <item name="android:statusBarColor">#F6F7FB</item>
+    <item name="android:windowLightStatusBar">true</item>
+  </style>
+</resources>
