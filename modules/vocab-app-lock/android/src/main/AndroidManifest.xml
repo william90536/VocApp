@@ -4,7 +4,7 @@
       android:name=".VocabAppLockAccessibilityService"
       android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
       android:exported="false"
-      android:label="VocabMaster App Lock">
+      android:label="詞伴 App Lock">
       <intent-filter>
         <action android:name="android.accessibilityservice.AccessibilityService" />
       </intent-filter>

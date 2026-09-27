@@ -6,13 +6,20 @@ plugins {
 group = 'expo.modules.vocabapplock'
 version = '1.0.0'
 
+expoModule {
+  canBePublished false
+}
+
 android {
   namespace 'expo.modules.vocabapplock'
+
   compileSdkVersion rootProject.ext.compileSdkVersion
 
   defaultConfig {
     minSdkVersion rootProject.ext.minSdkVersion
     targetSdkVersion rootProject.ext.targetSdkVersion
+    versionCode 1
+    versionName "1.0.0"
   }
 }
 

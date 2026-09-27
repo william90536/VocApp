@@ -11,7 +11,7 @@ class VocabAppLockModule : Module() {
     Name("VocabAppLock")
 
     Function("setConfig") { config: Map<String, Any?> ->
-      val context = appContext.reactContext ?: return@Function
+      val context = appContext.reactContext ?: return@Function null
       val packages = (config["packageNames"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
       val cooldown = (config["cooldownMinutes"] as? Number)?.toInt() ?: 15
       context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -29,8 +29,9 @@ class VocabAppLockModule : Module() {
     }
 
     Function("openAccessibilitySettings") {
-      val context = appContext.reactContext ?: return@Function
+      val context = appContext.reactContext ?: return@Function null
       context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      true
     }
   }
 
